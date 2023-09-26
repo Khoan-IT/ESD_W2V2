@@ -7,18 +7,17 @@ model:
   model_name_or_path: './checkpoint'
   freeze_feature_encoder: !!bool True
   use_siamese: !!bool True
-  freeze_encoder: !!bool False
+  freeze_encoder: !!bool True
 
 siamese:
   margin: 100.0
-  coff_siamese_loss: 0.7
+  coff_siamese_loss: 0.2
 
 train:
   batch_size: 32
   num_train_epochs: 1000
   use_gpu: !!bool True
   eval_step: 110
-  reset_data_loader_interval: 10
 
 optimizer:
   learning_rate: 1.0e-5

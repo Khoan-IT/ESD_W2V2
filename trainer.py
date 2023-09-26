@@ -73,17 +73,6 @@ class Trainer(object):
         eval_loss = 0
         eval_acc = 0
         for it in train_iterator:
-            # Change data train
-            if (it + 1) % self.args.train.reset_data_loader_interval == 0:
-                del train_dataloader
-                train_dataloader = DataLoader(self.train_dataset, 
-                                    collate_fn=datacollator,
-                                    batch_size=self.args.train.batch_size,
-                                    num_workers=8, 
-                                    shuffle=True, 
-                                    pin_memory=True,
-                                )
-
             losses = []
             siamese_losses = []
             classify_loss = []
