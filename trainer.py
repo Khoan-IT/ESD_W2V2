@@ -115,7 +115,7 @@ class Trainer(object):
                         self.config.save_pretrained(self.args.model.checkpoint_folder)
                         self.model.save_pretrained(self.args.model.checkpoint_folder)
                         self.feature_extractor.save_pretrained(self.args.model.checkpoint_folder)
-
+                            
                     self.model.train()
                 
                 global_steps += 1

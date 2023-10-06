@@ -12,7 +12,7 @@ from model.modeling_output import (
     SiameseNetworkOutput,
     HeadClassifierOutput
 )
-from model.losses import ContrastiveLoss
+from model.losses import ContrastiveLoss, NPairLoss
 
 class Wav2Vec2ClassificationHead(nn.Module):
     """Head for wav2vec2 classification task."""
@@ -38,7 +38,7 @@ class Wav2Vec2ClassificationHead(nn.Module):
         alphas = self.softmax(self.a_fc2(v).squeeze())
         res_att = (alphas.unsqueeze(2) * features).sum(dim=1)
 
-        x = self.dropout(res_att)
+        x = res_att
         x = self.dropout(self.relu(self.hidden_proj(x)))
         x = self.out_proj(x)
 
@@ -53,6 +53,7 @@ class Wav2Vec2ForSpeechClassification(Wav2Vec2PreTrainedModel):
         super(Wav2Vec2ForSpeechClassification, self).__init__(config)
         self.num_labels = args.classifier.num_labels
         self.config = config
+        self.args = args
 
         self.wav2vec2 = Wav2Vec2Model(config)
         self.classifier = Wav2Vec2ClassificationHead(args)
@@ -60,6 +61,7 @@ class Wav2Vec2ForSpeechClassification(Wav2Vec2PreTrainedModel):
         if args.model.freeze_feature_encoder:
             self.wav2vec2.freeze_feature_encoder()
 
+        self.n_pair_loss = NPairLoss()
 
     def forward(
         self,
@@ -87,7 +89,13 @@ class Wav2Vec2ForSpeechClassification(Wav2Vec2PreTrainedModel):
         loss = None
         if labels is not None:
             loss_fct = CrossEntropyLoss()
-            loss = loss_fct(logits.view(-1, self.num_labels), labels)
+
+            y_ground_truth = torch.argmax(labels, dim=1)
+            n_pair_loss = self.n_pair_loss(head_output.logits, y_ground_truth)
+
+            entropy_loss = loss_fct(logits.view(-1, self.num_labels), labels)
+            loss = self.args.siamese.coff_siamese_loss * n_pair_loss \
+                 + (1 - self.args.siamese.coff_siamese_loss) * entropy_loss
 
         if not return_dict:
             output = (logits,) + outputs[2:]
@@ -185,7 +193,7 @@ class SiameseNetworkForSpeechClassification(Wav2Vec2PreTrainedModel):
         
         siamese_loss = self.contrastive_loss(anchor_attention, another_attention, siamese_labels)
 
-        total_loss = self.coff_siamese_loss * siamese_loss + (1 - self.coff_siamese_loss) * classify_loss
+        total_loss = 1.0e-3 * self.coff_siamese_loss * siamese_loss + (1 - self.coff_siamese_loss) * classify_loss
         
         return SiameseNetworkOutput(
             siamese_loss=siamese_loss,
